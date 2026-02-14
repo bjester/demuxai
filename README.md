@@ -1,0 +1,31 @@
+# demuxai
+
+**EXPERIMENTAL: this is a work-in-progress, and for local usage. Not for production!**
+
+A lightweight proxy that provides a singular OpenAI compatible API for all your AI services.
+- Aggregates upstream APIs' models and prefixes them with a provider ID
+- The provider ID is used to route the request to the upstream provider
+- Before sending the request upstream, the provider ID is stripped from the request
+
+Named after a demultiplexer, takes one input and distributes it to one or more outputs.
+
+## Background
+I wanted an API proxy that I could configure in my Jetbrains IDE, but not limit be to that provider for all settings. For example, I use a local Ollama model for instant completion, and other providers for chat or agentic tasks. Additionally, there are many free tiers available, so this abstraction layer can implement more advanced routing behaviors to take full advantage of free offerings, without interruption.
+
+## Features
+Supports the following providers:
+- Ollama
+- Ollama Cloud
+- Github Models
+- Mistral AI (and Codestral)
+
+### Planned
+The following features are planned
+- Complete most of the API spec
+- Completion ID routing back to the original provider
+- Round-robin and failover providers
+- Consensus providers to summarize responses from multiple upstream providers
+- Split providers that route to upstream providers based off content type (i.e. python vs JS)
+
+## License
+MIT – Copyright 2026 Blaine Jester

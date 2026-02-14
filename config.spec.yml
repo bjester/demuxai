@@ -1,0 +1,35 @@
+demuxai:
+  listen: Optional[str]  # server listen address, default: 127.0.0.1
+  port: Optional[int]  # server port, default: 6041 (GOAI)
+  cache_seconds: Optional[int]  # global cache time in seconds (default: 3600)
+  timeout_seconds: Optional[int]  # seconds until request timeout (default: 300)
+  api_key: Optional[str]  # restrict access to only this API key (default: None - allows none/any)
+
+  providers:
+    unique-id:
+      type: str
+      name: Optional[str]
+      description: Optional[str]
+      url: Optional[str]
+      api_key: str|Optional[str]  # optionality depends on type
+      cache_seconds: Optional[int]  # seconds to cache data, like models list (default: global)
+      timeout_seconds: Optional[int]  # seconds until request timeout (default: global)
+      include_models:  # no models included by default, unless exclude_models is defined, then all
+        - Optional[str]  # provider's ID - supports glob
+      exclude_models:
+        - Optional[str]  # provider's ID, supports glob
+
+  composites:
+    unique-id:
+      type: str  # roundrobin, failover
+      name: Optional[str]
+      description: Optional[str]
+      temperature: Optional[float]  # set temperature for all models
+      metadata: Optional[dict]  # optional extra data
+      providers:
+        - id: str  # the ID the provider gives for the model
+          provider_id: str  # the provider's ID ('unique-id' above)
+          temperature: Optional[float]  # override temperature, defaults to suggested
+        - id: str
+          provider_id: str
+          temperature: Optional[float]
