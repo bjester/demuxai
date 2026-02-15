@@ -10,7 +10,7 @@ A lightweight proxy that provides a singular OpenAI compatible API for all your 
 Named after a demultiplexer, takes one input and distributes it to one or more outputs.
 
 ## Background
-I wanted an API proxy that I could configure in my Jetbrains IDE, but not limit be to that provider for all settings. For example, I use a local Ollama model for instant completion, and other providers for chat or agentic tasks. Additionally, there are many free tiers available, so this abstraction layer can implement more advanced routing behaviors to take full advantage of free offerings, without interruption.
+I wanted an API proxy that I could configure in my Jetbrains IDE, but not limit me to that provider for all settings. For example, I use a local Ollama model for instant completion, and other providers for chat or agentic tasks. Additionally, there are many free tiers available, so this abstraction layer can implement more advanced routing behaviors to take full advantage of free offerings, without interruption.
 
 ## Features
 Supports the following providers:
@@ -19,13 +19,28 @@ Supports the following providers:
 - Github Models
 - Mistral AI (and Codestral)
 
+Currently, demuxai has the following capabilities:
+- Legacy completion endpoint
+- Chat completion
+- FIM completion
+- Streaming responses
+
 ### Planned
-The following features are planned
+The following features are planned:
+- Timing statistics (WIP)
+- Token statistics (WIP)
 - Complete most of the API spec
 - Completion ID routing back to the original provider
 - Round-robin and failover providers
 - Consensus providers to summarize responses from multiple upstream providers
 - Split providers that route to upstream providers based off content type (i.e. python vs JS)
+- Configuration like [routedns](https://github.com/folbricht/routedns)
+
+## Alternatives
+- Need a full-featured proxy or GUI? Checkout [bifrost](https://github.com/maximhq/bifrost)
+
+## AI Disclosure
+LLMs were used in the development of this project, mostly for brainstorming and bootstrapping code, particularly tests. The contribution proportion is roughly 80 / 20, human and AI code respectively.
 
 ## License
-MIT – Copyright 2026 Blaine Jester
+[MIT](LICENSE) :: Copyright 2026 Blaine Jester
