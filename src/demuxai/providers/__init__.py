@@ -1,4 +1,5 @@
 from .composite import CompositeProvider
+from .fireworks import FireworksProvider
 from .github import GithubProvider
 from .mistralai import CodestralProvider
 from .mistralai import MistralProvider
@@ -8,12 +9,13 @@ from .registry import registry
 from .service import ServiceProvider
 
 __all__ = [
-    "CompositeProvider",
-    "ServiceProvider",
-    "MistralProvider",
     "CodestralProvider",
+    "CompositeProvider",
+    "FireworksProvider",
+    "GithubProvider",
+    "MistralProvider",
     "OllamaProvider",
     "OllamaCloudProvider",
-    "GithubProvider",
+    "ServiceProvider",
     "registry",
 ]
