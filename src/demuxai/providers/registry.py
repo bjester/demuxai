@@ -20,3 +20,4 @@ registry = ProviderRegistry()
 
 def register(provider_class: Type[ServiceProvider]):
     registry.add(provider_class.type, provider_class, allow_overwrite=True)
+    return provider_class
