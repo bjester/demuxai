@@ -22,6 +22,7 @@ jobs:
       - name: Read the asset list
         id: build-asset-list
         run: |
+          set -eo pipefail
           cd dist/
           echo "WHL_NAME=$(ls *whl)" >> $GITHUB_ENV
           echo "PEX_NAME=$(ls *pex)" >> $GITHUB_ENV
@@ -54,10 +55,10 @@ jobs:
       - name: Read the asset list
         id: asset-list
         run: |
+          set -eo pipefail
           echo "WHL_NAME=$(ls *whl)" >> $GITHUB_ENV
-          echo "WHL_CHECKSUM=$(sha256sum *whl | cut -d '' -f 1)" >> $GITHUB_ENV
-          echo "PEX_NAME=$(ls *pex)" >> $GITHUB_ENV
-          echo "PEX_CHECKSUM=$(sha256sum *pex | cut -d '' -f 1)" >> $GITHUB_ENV
+          echo "WHL_CHECKSUM=$(find ./ -name '*whl' -type f | head -1 | sha256sum | cut -d ' ' -f 1)" >> $GITHUB_ENV
+          echo "PEX_CHECKSUM=$(find ./ -name 'demuxai.pex' -type f | head -1 | sha256sum | cut -d ' ' -f 1)" >> $GITHUB_ENV
 
       - name: Create PR comment with asset link
         uses: thollander/actions-comment-pull-request@v3
@@ -65,8 +66,8 @@ jobs:
           message: |
             🎉 **Build Assets are ready!**
 
-            | File | Checksum |
-            | --- | --- |
-            | [${{ env.WHL_NAME }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${{ needs.build.outputs.whl-artifact-id }}) | `${{ env.WHL_CHECKSUM }}` |
-            | [${{ env.PEX_NAME }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${{ needs.build.outputs.pex-artifact-id }}) | `${{ env.PEX_CHECKSUM }}` |
+            | Type | File | Checksum |
+            | --- | --- | --- |
+            | Wheel | [${{ env.WHL_NAME }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${{ needs.build.outputs.whl-artifact-id }}) | `${{ env.WHL_CHECKSUM }}` |
+            | PEX | [demuxai.pex](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${{ needs.build.outputs.pex-artifact-id }}) | `${{ env.PEX_CHECKSUM }}` |
           comment-tag: build-assets
