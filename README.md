@@ -18,6 +18,7 @@ Supports the following providers:
 - Ollama Cloud
 - Github Models
 - Mistral AI (and Codestral)
+- Fireworks AI Serverless
 
 Currently, demuxai has the following capabilities:
 - Legacy completion endpoint
@@ -38,6 +39,7 @@ The following features are planned:
 
 ## Alternatives
 - Need a full-featured proxy or GUI? Checkout [bifrost](https://github.com/maximhq/bifrost)
+- Need more providers? Checkout [LiteLLM](https://github.com/BerriAI/litellm)
 
 ## AI Disclosure
 LLMs were used in the development of this project, mostly for brainstorming and bootstrapping code, particularly tests. The contribution proportion is roughly 80 / 20, human and AI code respectively.
