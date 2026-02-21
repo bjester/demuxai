@@ -1,31 +1,19 @@
-from types import SimpleNamespace
-from unittest import IsolatedAsyncioTestCase
 from unittest.mock import AsyncMock
 from unittest.mock import Mock
 
-from demuxai.context import Context
 from demuxai.model import IO_MODALITY_IMAGE
 from demuxai.model import IO_MODALITY_TEXT
 from demuxai.models.github import GithubModel
 from demuxai.providers.github import DEFAULT_CREATED_TIME
 from demuxai.providers.github import GithubProvider
-from demuxai.settings.provider import ProviderSettings
+
+from .base import BaseProviderTestCase
 
 
-class GithubProviderTestCase(IsolatedAsyncioTestCase):
-    def setUp(self):
-        self.settings = ProviderSettings(
-            local_id="test-github",
-            provider_type="github",
-            api_key="test-token",
-            timeout_seconds=60,
-            cache_seconds=0,
-        )
-        self.provider = GithubProvider(self.settings)
-        mock_request = SimpleNamespace(
-            url=SimpleNamespace(path="/v1/models"), query_params=None, _json={}
-        )
-        self.context = Context(mock_request)
+class GithubProviderTestCase(BaseProviderTestCase):
+    provider_class = GithubProvider
+    provider_type = "github"
+    api_key = "test-token"
 
     async def test_get_models_basic(self):
         """Test basic _get_models with a multimodal model"""

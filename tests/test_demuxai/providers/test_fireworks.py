@@ -1,31 +1,18 @@
-from types import SimpleNamespace
-from unittest import IsolatedAsyncioTestCase
 from unittest.mock import AsyncMock
 from unittest.mock import Mock
 
-from demuxai.context import Context
 from demuxai.model import CAPABILITY_TOOLS
 from demuxai.model import IO_MODALITY_IMAGE
 from demuxai.model import IO_MODALITY_TEXT
 from demuxai.models.fireworks import FireworksModel
 from demuxai.providers.fireworks import FireworksProvider
-from demuxai.settings.provider import ProviderSettings
+
+from .base import BaseProviderTestCase
 
 
-class FireworksProviderTestCase(IsolatedAsyncioTestCase):
-    def setUp(self):
-        self.settings = ProviderSettings(
-            local_id="test-fireworks",
-            provider_type="fireworks",
-            api_key="test-key",
-            timeout_seconds=60,
-            cache_seconds=0,
-        )
-        self.provider = FireworksProvider(self.settings)
-        mock_request = SimpleNamespace(
-            url=SimpleNamespace(path="/v1/models"), query_params=None, _json={}
-        )
-        self.context = Context(mock_request)
+class FireworksProviderTestCase(BaseProviderTestCase):
+    provider_class = FireworksProvider
+    provider_type = "fireworks"
 
     async def test_get_models_basic(self):
         """Test basic _get_models with a single model supporting chat and tools"""

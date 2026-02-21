@@ -1,9 +1,6 @@
-from types import SimpleNamespace
-from unittest import IsolatedAsyncioTestCase
 from unittest.mock import AsyncMock
 from unittest.mock import Mock
 
-from demuxai.context import Context
 from demuxai.model import CAPABILITY_FIM
 from demuxai.model import CAPABILITY_REASONING
 from demuxai.model import CAPABILITY_STREAMING
@@ -12,22 +9,14 @@ from demuxai.model import IO_MODALITY_IMAGE
 from demuxai.model import IO_MODALITY_TEXT
 from demuxai.models.ollama import OllamaModel
 from demuxai.providers.ollama import OllamaProvider
-from demuxai.settings.provider import ProviderSettings
+
+from .base import BaseProviderTestCase
 
 
-class OllamaProviderTestCase(IsolatedAsyncioTestCase):
-    def setUp(self):
-        self.settings = ProviderSettings(
-            local_id="test-ollama",
-            provider_type="ollama",
-            timeout_seconds=60,
-            cache_seconds=0,
-        )
-        self.provider = OllamaProvider(self.settings)
-        mock_request = SimpleNamespace(
-            url=SimpleNamespace(path="/v1/models"), query_params=None, _json={}
-        )
-        self.context = Context(mock_request)
+class OllamaProviderTestCase(BaseProviderTestCase):
+    provider_class = OllamaProvider
+    provider_type = "ollama"
+    api_key = None  # Ollama doesn't require an API key by default
 
     async def test_get_models_basic(self):
         """Test basic _get_models with a simple completion model"""

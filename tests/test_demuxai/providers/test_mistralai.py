@@ -1,9 +1,6 @@
-from types import SimpleNamespace
-from unittest import IsolatedAsyncioTestCase
 from unittest.mock import AsyncMock
 from unittest.mock import Mock
 
-from demuxai.context import Context
 from demuxai.model import CAPABILITY_FIM
 from demuxai.model import CAPABILITY_STREAMING
 from demuxai.model import CAPABILITY_TOOLS
@@ -11,23 +8,13 @@ from demuxai.model import IO_MODALITY_IMAGE
 from demuxai.model import IO_MODALITY_TEXT
 from demuxai.models.mistralai import MistralModel
 from demuxai.providers.mistralai import MistralProvider
-from demuxai.settings.provider import ProviderSettings
+
+from .base import BaseProviderTestCase
 
 
-class MistralProviderTestCase(IsolatedAsyncioTestCase):
-    def setUp(self):
-        self.settings = ProviderSettings(
-            local_id="test-mistral",
-            provider_type="mistralai",
-            api_key="test-key",
-            timeout_seconds=60,
-            cache_seconds=0,
-        )
-        self.provider = MistralProvider(self.settings)
-        mock_request = SimpleNamespace(
-            url=SimpleNamespace(path="/v1/models"), query_params=None, _json={}
-        )
-        self.context = Context(mock_request)
+class MistralProviderTestCase(BaseProviderTestCase):
+    provider_class = MistralProvider
+    provider_type = "mistralai"
 
     async def test_get_models_full_capabilities(self):
         """Test _get_models with a model that has all capabilities"""
@@ -70,7 +57,7 @@ class MistralProviderTestCase(IsolatedAsyncioTestCase):
         self.assertEqual(len(result.models), 1)
         model = result.models[0]
         self.assertIsInstance(model, MistralModel)
-        self.assertEqual(model.id, "test-mistral/codestral-2501")
+        self.assertEqual(model.id, "test-mistralai/codestral-2501")
         self.assertEqual(model.owned_by, "mistralai")
         self.assertIn(CAPABILITY_STREAMING, model.capabilities)
         self.assertIn(CAPABILITY_TOOLS, model.capabilities)
@@ -144,7 +131,7 @@ class MistralProviderTestCase(IsolatedAsyncioTestCase):
         result = await self.provider._get_models(self.context)
 
         self.assertEqual(len(result.models), 1)
-        self.assertEqual(result.models[0].id, "test-mistral/chat-model")
+        self.assertEqual(result.models[0].id, "test-mistralai/chat-model")
 
     async def test_get_models_minimal_capabilities(self):
         """Test _get_models with a model that has minimal capabilities"""
@@ -204,7 +191,7 @@ class MistralProviderTestCase(IsolatedAsyncioTestCase):
         result = await self.provider._get_models(self.context)
 
         self.assertEqual(len(result.models), 1)
-        self.assertEqual(result.models[0].id, "test-mistral/allowed-model-1")
+        self.assertEqual(result.models[0].id, "test-mistralai/allowed-model-1")
 
     async def test_get_models_metadata_preserved(self):
         """Test that model metadata is properly preserved"""
