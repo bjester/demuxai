@@ -8,19 +8,21 @@ from demuxai.provider import ProviderModelsResponse
 from demuxai.settings.provider import ProviderSettings
 from demuxai.timing import TimingReporter
 from demuxai.timing import TimingStatistics
-from demuxai.utils import AsyncCacher
+from demuxai.utils import async_cacher
+from demuxai.utils import CacheProvider
 
 
-class ServiceProvider(BaseProvider, TimingReporter, ABC):
-    __slots__ = ("settings", "timing", "usage", "_models_cacher")
+class ServiceProvider(BaseProvider, TimingReporter, CacheProvider, ABC):
+    __slots__ = ("settings", "timing", "usage")
 
     def __init__(self, settings: ProviderSettings):
         self.settings = settings
         self.timing = TimingStatistics()
         self.usage = Usage()
-        self._models_cacher: AsyncCacher[ProviderModelsResponse] = AsyncCacher(
-            self._get_models, cache_time=settings.cache_seconds
-        )
+
+    @property
+    def cache_time(self):
+        return self.settings.cache_seconds
 
     def __init_subclass__(cls, **kwargs):
         provider_type = cls.get_meta_option("type")
@@ -36,8 +38,9 @@ class ServiceProvider(BaseProvider, TimingReporter, ABC):
     async def _get_models(self, context: Context) -> ProviderModelsResponse:
         pass
 
+    @async_cacher
     async def get_models(self, context: Context) -> ProviderModelsResponse:
-        return await self._models_cacher(context)
+        return await self._get_models(context)
 
     @property
     def time_to_first_byte(self) -> float:
