@@ -4,7 +4,6 @@ from typing import List
 from typing import Optional
 
 from demuxai.context import Context
-from demuxai.context import EmbeddingContext
 from demuxai.model import CAPABILITY_COMPLETION
 from demuxai.model import CAPABILITY_EMBEDDING
 from demuxai.model import CAPABILITY_FIM
@@ -15,7 +14,6 @@ from demuxai.model import IO_MODALITY_IMAGE
 from demuxai.model import IO_MODALITY_TEXT
 from demuxai.models.ollama import OllamaModel
 from demuxai.provider import ProviderModelsResponse
-from demuxai.providers.http import HTTPEmbeddingResponse
 from demuxai.providers.http import HTTPServiceProvider
 from demuxai.providers.registry import register
 from demuxai.settings.provider import ProviderSettings
@@ -115,10 +113,6 @@ class BaseOllamaProvider(HTTPServiceProvider):
 
         model_details = response.json()
         return model_details
-
-    async def get_embeddings(self, context: EmbeddingContext) -> HTTPEmbeddingResponse:
-        context.url_path = "/api/embed"
-        return await super().get_embeddings(context)
 
 
 @register
