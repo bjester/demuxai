@@ -2,16 +2,7 @@ import asyncio
 from types import SimpleNamespace
 
 from demuxai.context import EmbeddingContext
-from demuxai.providers.ollama import OllamaProvider
-from demuxai.settings.provider import ProviderSettings
-
-
-settings = ProviderSettings(
-    "test",
-    "ollama",
-    timeout_seconds=60,
-)
-provider = OllamaProvider(settings)
+from helper import provider
 
 
 async def get_embeddings():
@@ -31,6 +22,7 @@ async def get_embeddings():
 
     async with response.stream() as embeddings:
         print("STATUS: ", response.status_code)
+        assert response.status_code < 300
         async for r in embeddings:
             for e_dict in r.get("data", []):
                 assert e_dict["object"] == "embedding"

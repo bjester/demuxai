@@ -3,16 +3,7 @@ import json
 from types import SimpleNamespace
 
 from demuxai.context import Context
-from demuxai.providers.ollama import OllamaProvider
-from demuxai.settings.provider import ProviderSettings
-
-
-settings = ProviderSettings(
-    "test",
-    "ollama",
-    timeout_seconds=60,
-)
-provider = OllamaProvider(settings)
+from helper import provider
 
 
 async def get_models():
@@ -24,6 +15,7 @@ async def get_models():
 
     async with response.stream() as models:
         print("STATUS: ", response.status_code)
+        assert response.status_code < 300
         async for m in models:
             model_dict = m.to_dict()
             assert model_dict["object"] == "model"

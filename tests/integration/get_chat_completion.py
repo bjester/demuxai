@@ -3,17 +3,8 @@ import json
 from types import SimpleNamespace
 
 from demuxai.context import ChatCompletionContext
-from demuxai.providers.ollama import OllamaProvider
-from demuxai.settings.provider import ProviderSettings
 from demuxai.sse import JSONEvent
-
-
-settings = ProviderSettings(
-    "test",
-    "ollama",
-    timeout_seconds=60,
-)
-provider = OllamaProvider(settings)
+from helper import provider
 
 
 async def get_chat_completion():
@@ -38,6 +29,7 @@ async def get_chat_completion():
     response = await provider.get_chat_completion(context)
     async with response.stream() as r_aiter:
         print("STATUS: ", response.status_code)
+        assert response.status_code < 300
         async for r in r_aiter:
             data = r
             if isinstance(r, JSONEvent):
