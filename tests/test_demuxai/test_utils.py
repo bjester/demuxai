@@ -71,18 +71,22 @@ class AsyncCacheTargetTestCase(IsolatedAsyncioTestCase):
 
     async def test_call__function_called_after_cache_expires(self):
         """Test that function is called again after cache expires"""
-        # First call to cache the value
-        await self.cache_target()
-        self.mock_func.reset_mock()
+        from unittest.mock import patch
 
-        # Wait for cache to expire
-        await asyncio.sleep(1.1)  # Sleep slightly longer than cache time
+        with patch("time.monotonic") as mock_monotonic:
+            mock_monotonic.return_value = 1000.0
+            # First call to cache the value
+            await self.cache_target()
+            self.mock_func.reset_mock()
 
-        # Second call should execute function again
-        result = await self.cache_target()
+            # "Advance" time by more than cache time
+            mock_monotonic.return_value += self.mock_target.cache_time + 0.1
 
-        self.assertEqual(result, "test_value")
-        self.mock_func.assert_awaited_once_with(self.mock_target)
+            # Second call should execute function again
+            result = await self.cache_target()
+
+            self.assertEqual(result, "test_value")
+            self.mock_func.assert_awaited_once_with(self.mock_target)
 
     async def test_call__thread_safety(self):
         """Test that concurrent calls are handled safely"""
