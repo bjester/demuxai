@@ -152,7 +152,7 @@ class CompletionContext(StreamingContext, ModelGenerationContext):
 
 class ChatCompletionContext(StreamingContext, ModelGenerationContext):
     @property
-    def messages(self) -> List[str]:
+    def messages(self) -> List[dict]:
         return self.payload.get("messages", [])
 
 
