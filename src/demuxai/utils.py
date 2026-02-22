@@ -1,9 +1,12 @@
 import collections
 import time
+import weakref
+from asyncio import Lock
 from typing import Any
 from typing import Callable
 from typing import Coroutine
 from typing import Generic
+from typing import Type
 from typing import TypeVar
 
 
@@ -19,24 +22,98 @@ class SingletonMeta(type):
         return cls.__instances[cls]
 
 
-class AsyncCacher(Generic[T]):
-    __slots__ = ("func", "cache_time", "last_call_time", "cache")
+_NO_CACHE_VALUE = object()
 
-    def __init__(self, func: Callable[[Any], Coroutine[Any, Any, T]], cache_time: int):
+
+class CacheProvider(object):
+    """Cache providers should provide `cache_time` property"""
+
+    cache_time: int
+
+
+class BaseAsyncCache(Generic[T]):
+    """Base class for cache decorator utils inspired by functools.cached_property"""
+
+    def __init__(self, func: Callable[..., Coroutine[Any, Any, T]]):
         self.func = func
-        self.cache_time = cache_time
+        self.__doc__ = func.__doc__
+
+
+class AsyncCacheTarget(BaseAsyncCache[T]):
+    """A callable cache class"""
+
+    def __init__(
+        self, target: CacheProvider, func: Callable[..., Coroutine[Any, Any, T]]
+    ):
+        if not isinstance(target, CacheProvider):
+            raise RuntimeError(
+                f"Cannot call target that isn't a CacheProvider: {target}"
+            )
+        super().__init__(func)
+        self.target_ref = weakref.ref(target)
+        self.lock = Lock()
+        self.value = _NO_CACHE_VALUE
         self.last_call_time = None
-        self.cache = None
+
+    @property
+    def target(self):
+        target = self.target_ref()
+        if target is None:
+            raise RuntimeError("Target instance has been garbage collected")
+        return target
+
+    def _is_fresh(self, now: float) -> bool:
+        return (
+            self.last_call_time is not None
+            and (now - self.last_call_time) < (self.target.cache_time or 0)
+            and self.value is not _NO_CACHE_VALUE
+        )
 
     async def __call__(self, *args, **kwargs):
-        if (
-            self.last_call_time is not None
-            and (time.time() - self.last_call_time) < self.cache_time
-        ):
-            return self.cache
-        self.cache = await self.func(*args, **kwargs)
-        self.last_call_time = time.time()
-        return self.cache
+        now = time.monotonic()
+        if self._is_fresh(now):
+            return self.value
+
+        async with self.lock:
+            now = time.monotonic()
+            if self._is_fresh(now):
+                return self.value
+
+            self.value = await self.func(self.target, *args, **kwargs)
+            self.last_call_time = now
+            return self.value
+
+
+class AsyncCacher(BaseAsyncCache[T]):
+    """Cache decorator inspired by functools.cached_property"""
+
+    def __init__(self, func: Callable[..., Coroutine[Any, Any, T]]):
+        super().__init__(func)
+        self.cachers = weakref.WeakKeyDictionary()
+
+    def __set_name__(self, owner: Type[CacheProvider], name: str):
+        if not issubclass(owner, CacheProvider):
+            raise TypeError("async_cacher requires CacheProvider target class")
+
+    def __get__(
+        self, instance: CacheProvider, owner: Type[CacheProvider] = None
+    ) -> AsyncCacheTarget[T]:
+        if instance is None:
+            return self
+
+        target = self.cachers.get(instance)
+        if target is None:
+            target = AsyncCacheTarget(instance, self.func)
+            self.cachers[instance] = target
+        return target
+
+    async def __call__(self, *args, **kwargs):
+        raise TypeError(
+            "async_cacher is a descriptor; access it via an instance, e.g. `await obj.method()`"
+        )
+
+
+async_cacher = AsyncCacher
 
 
 def recursive_update(original_dict, update_dict):
