@@ -34,7 +34,7 @@ class CacheProvider(object):
 class BaseAsyncCache(Generic[T]):
     """Base class for cache decorator utils inspired by functools.cached_property"""
 
-    def __init__(self, func: Callable[[Any], Coroutine[Any, Any, T]]):
+    def __init__(self, func: Callable[..., Coroutine[Any, Any, T]]):
         self.func = func
         self.__doc__ = func.__doc__
 
@@ -43,22 +43,29 @@ class AsyncCacheTarget(BaseAsyncCache[T]):
     """A callable cache class"""
 
     def __init__(
-        self, target: CacheProvider, func: Callable[[Any], Coroutine[Any, Any, T]]
+        self, target: CacheProvider, func: Callable[..., Coroutine[Any, Any, T]]
     ):
         if not isinstance(target, CacheProvider):
             raise RuntimeError(
                 f"Cannot call target that isn't a CacheProvider: {target}"
             )
         super().__init__(func)
-        self.target = target
+        self.target_ref = weakref.ref(target)
         self.lock = Lock()
         self.value = _NO_CACHE_VALUE
         self.last_call_time = None
 
+    @property
+    def target(self):
+        target = self.target_ref()
+        if target is None:
+            raise RuntimeError("Target instance has been garbage collected")
+        return target
+
     def _is_fresh(self, now: float) -> bool:
         return (
             self.last_call_time is not None
-            and (now - self.last_call_time) < self.target.cache_time
+            and (now - self.last_call_time) < (self.target.cache_time or 0)
             and self.value is not _NO_CACHE_VALUE
         )
 
@@ -80,7 +87,7 @@ class AsyncCacheTarget(BaseAsyncCache[T]):
 class AsyncCacher(BaseAsyncCache[T]):
     """Cache decorator inspired by functools.cached_property"""
 
-    def __init__(self, func: Callable[[Any], Coroutine[Any, Any, T]]):
+    def __init__(self, func: Callable[..., Coroutine[Any, Any, T]]):
         super().__init__(func)
         self.cachers = weakref.WeakKeyDictionary()
 
