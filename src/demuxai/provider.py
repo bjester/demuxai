@@ -75,7 +75,7 @@ class ProviderModelsResponse(ProviderResponse[T, Model], Generic[T]):
             yield model
 
 
-class ProviderEmbeddingResponse(ProviderResponse[T, Model], Generic[T]):
+class ProviderEmbeddingResponse(ProviderResponse[T, Embedding], Generic[T]):
     """Response for a list of Embeddings"""
 
     __slots__ = ("embeddings",)
