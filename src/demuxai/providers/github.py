@@ -2,6 +2,9 @@ import logging
 import time
 
 from demuxai.context import Context
+from demuxai.model import CAPABILITY_COMPLETION
+from demuxai.model import CAPABILITY_EMBEDDING
+from demuxai.model import IO_MODALITY_EMBEDDING
 from demuxai.model import IO_MODALITY_TEXT
 from demuxai.models.github import GithubModel
 from demuxai.provider import ProviderModelsResponse
@@ -37,6 +40,7 @@ class GithubProvider(HTTPServiceProvider):
                 continue
 
             input_modalities = model_dict.get("supported_input_modalities", [])
+            output_modalities = model_dict.get("supported_output_modalities", [])
             if IO_MODALITY_TEXT not in input_modalities:
                 logger.warning(
                     f"[{self.id}] Model {model_dict['id']} does not support text input"
@@ -44,6 +48,10 @@ class GithubProvider(HTTPServiceProvider):
                 continue
 
             capabilities = model_dict.get("capabilities", [])
+            if IO_MODALITY_EMBEDDING in output_modalities:
+                capabilities.append(CAPABILITY_EMBEDDING)
+            else:
+                capabilities.append(CAPABILITY_COMPLETION)
 
             model_dict.update(
                 created=DEFAULT_CREATED_TIME,

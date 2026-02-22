@@ -1,8 +1,11 @@
 from typing import List
 from typing import Optional
+from typing import Union
 
 from demuxai.timing import Timing
 from fastapi import Request
+from starlette.datastructures import Headers
+from starlette.datastructures import QueryParams
 
 
 TOKEN_PREFIX = "[PREFIX]"
@@ -45,36 +48,47 @@ class Usage(object):
 
 
 class Context(object):
-    __slots__ = ("raw_request", "usage", "timing", "url_path", "raw_model")
+    __slots__ = ("raw_request", "usage", "timing", "url_path")
 
     def __init__(self, raw_request: Request):
         self.raw_request = raw_request
         self.usage = Usage()
         self.timing = Timing()
         self.url_path = raw_request.url.path
-        self.raw_model = self.payload.get("model", None)
 
     @property
-    def headers(self):
+    def headers(self) -> Headers:
         return self.raw_request.headers
 
     @property
-    def query_params(self):
+    def query_params(self) -> QueryParams:
         return self.raw_request.query_params
 
     @property
     def payload(self) -> dict:
         return getattr(self.raw_request, "_json", {})
 
-    @property
-    def streaming(self) -> bool:
-        return self.payload.get("stream", False)
+    def update(self, **kwargs):
+        """
+        Update the context with new values.
+        :param kwargs: Key value pairs to update the context with.
+        """
+        self.payload.update(**kwargs)
 
-    @property
-    def provider_id(self) -> Optional[str]:
-        if self.raw_model and "/" in self.raw_model:
-            return self.raw_model.split("/", 1)[0]
-        return None
+    @classmethod
+    async def from_request(cls, raw_request: Request):
+        # preload the body, which gets cached on the request object
+        if raw_request.method == "POST":
+            await raw_request.json()
+        return cls(raw_request)
+
+
+class ModelContext(Context):
+    __slots__ = ("raw_model",)
+
+    def __init__(self, raw_request: Request):
+        super().__init__(raw_request)
+        self.raw_model = self.payload.get("model", None)
 
     @property
     def model(self) -> Optional[str]:
@@ -83,13 +97,25 @@ class Context(object):
         return self.raw_model
 
     @property
-    def suffix(self) -> Optional[str]:
-        return self.payload.get("suffix", None)
+    def provider_id(self) -> Optional[str]:
+        if self.raw_model and "/" in self.raw_model:
+            return self.raw_model.split("/", 1)[0]
+        return None
 
-    @property
-    def prompt(self) -> Optional[str]:
-        return self.payload.get("prompt", None)
+    def update(self, **kwargs):
+        """
+        Update the context with new values.
+        :param kwargs: Key value pairs to update the context with.
+        """
+        super().update(**kwargs)
+        model = kwargs.get("model", None)
+        if model and "/" in model:
+            self.raw_model = model
+        elif model:
+            self.raw_model = f"{self.provider_id}/{model}"
 
+
+class ModelGenerationContext(ModelContext):
     @property
     def temperature(self) -> Optional[float]:
         return self.payload.get("temperature", None)
@@ -98,29 +124,42 @@ class Context(object):
     def stop_tokens(self) -> List[str]:
         return self.payload.get("stop", [])
 
+
+class StreamingContext(Context):
+    @property
+    def streaming(self) -> bool:
+        return self.payload.get("stream", False)
+
+
+class CompletionContext(StreamingContext, ModelGenerationContext):
+    @property
+    def suffix(self) -> Optional[str]:
+        return self.payload.get("suffix", None)
+
+    @property
+    def prompt(self) -> str:
+        return self.payload.get("prompt", "")
+
     @property
     def is_fim(self) -> bool:
         return (
             self.prompt is not None
+            and self.prompt != ""
             and self.suffix is not None
             or TOKEN_SUFFIX in self.stop_tokens
         )
 
-    def update(self, **kwargs):
-        """
-        Update the context with new values.
-        :param kwargs: Key value pairs to update the context with.
-        """
-        self.payload.update(**kwargs)
-        model = self.payload.get("model", None)
-        if model and "/" in model:
-            self.raw_model = model
-        elif model:
-            self.raw_model = f"{self.provider_id}/{model}"
 
-    @classmethod
-    async def from_request(cls, raw_request: Request):
-        # preload the body, which gets cached on the request object
-        if raw_request.method == "POST":
-            await raw_request.json()
-        return cls(raw_request)
+class ChatCompletionContext(StreamingContext, ModelGenerationContext):
+    @property
+    def messages(self) -> List[str]:
+        return self.payload.get("messages", [])
+
+
+AnyCompletionContext = Union[CompletionContext, ChatCompletionContext]
+
+
+class EmbeddingContext(ModelContext):
+    @property
+    def input(self) -> Union[str, List[str]]:
+        return self.payload.get("input", "")

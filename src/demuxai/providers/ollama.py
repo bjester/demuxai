@@ -4,6 +4,9 @@ from typing import List
 from typing import Optional
 
 from demuxai.context import Context
+from demuxai.context import EmbeddingContext
+from demuxai.model import CAPABILITY_COMPLETION
+from demuxai.model import CAPABILITY_EMBEDDING
 from demuxai.model import CAPABILITY_FIM
 from demuxai.model import CAPABILITY_REASONING
 from demuxai.model import CAPABILITY_STREAMING
@@ -12,12 +15,14 @@ from demuxai.model import IO_MODALITY_IMAGE
 from demuxai.model import IO_MODALITY_TEXT
 from demuxai.models.ollama import OllamaModel
 from demuxai.provider import ProviderModelsResponse
+from demuxai.providers.http import HTTPEmbeddingResponse
 from demuxai.providers.http import HTTPServiceProvider
 from demuxai.providers.registry import register
 from demuxai.settings.provider import ProviderSettings
 
 
 OLLAMA_CAPABILITY_COMPLETION = "completion"
+OLLAMA_CAPABILITY_EMBEDDING = "embedding"
 OLLAMA_CAPABILITY_INSERT = "insert"
 OLLAMA_CAPABILITY_VISION = "vision"
 OLLAMA_CAPABILITY_TOOLS = "tools"
@@ -25,6 +30,7 @@ OLLAMA_CAPABILITIES_MAP = {
     OLLAMA_CAPABILITY_COMPLETION: IO_MODALITY_TEXT,
     OLLAMA_CAPABILITY_VISION: IO_MODALITY_IMAGE,
 }
+MINIMUM_CAPABILITIES = {OLLAMA_CAPABILITY_EMBEDDING, OLLAMA_CAPABILITY_COMPLETION}
 
 logger = logging.getLogger("uvicorn")
 
@@ -49,28 +55,34 @@ class BaseOllamaProvider(HTTPServiceProvider):
             ollama_capabilities = ollama_details.get("capabilities", [])
             ollama_template = ollama_details.get("template", "")
 
-            # text completion is the minimum required capability
-            if OLLAMA_CAPABILITY_COMPLETION not in ollama_capabilities:
+            # Check for minimum required capability
+            if not MINIMUM_CAPABILITIES.intersection(ollama_capabilities):
                 logger.warning(
-                    f"[{self.id}] Model {model_dict['id']} does not allow completion"
+                    f"[{self.id}] Model {model_dict['id']} does not support minimum capabilities"
                 )
                 continue
 
-            capabilities = [CAPABILITY_STREAMING]
-            if (
-                "if .Tools" in ollama_template
-                or OLLAMA_CAPABILITY_TOOLS in ollama_capabilities
-            ):
-                capabilities.append(CAPABILITY_TOOLS)
+            capabilities = []
 
-            if "{{ .Thinking }}" in ollama_template:
-                capabilities.append(CAPABILITY_REASONING)
+            if OLLAMA_CAPABILITY_EMBEDDING in ollama_capabilities:
+                capabilities.append(CAPABILITY_EMBEDDING)
+            else:
+                capabilities.append(CAPABILITY_COMPLETION)
+                capabilities.append(CAPABILITY_STREAMING)
+                if (
+                    "if .Tools" in ollama_template
+                    or OLLAMA_CAPABILITY_TOOLS in ollama_capabilities
+                ):
+                    capabilities.append(CAPABILITY_TOOLS)
 
-            if (
-                "if .Suffix" in ollama_template
-                or OLLAMA_CAPABILITY_INSERT in ollama_capabilities
-            ):
-                capabilities.append(CAPABILITY_FIM)
+                if "{{ .Thinking }}" in ollama_template:
+                    capabilities.append(CAPABILITY_REASONING)
+
+                if (
+                    "if .Suffix" in ollama_template
+                    or OLLAMA_CAPABILITY_INSERT in ollama_capabilities
+                ):
+                    capabilities.append(CAPABILITY_FIM)
 
             model_dict.update(
                 owned_by=self.type,
@@ -103,6 +115,10 @@ class BaseOllamaProvider(HTTPServiceProvider):
 
         model_details = response.json()
         return model_details
+
+    async def get_embeddings(self, context: EmbeddingContext) -> HTTPEmbeddingResponse:
+        context.url_path = "/api/embed"
+        return await super().get_embeddings(context)
 
 
 @register

@@ -3,7 +3,11 @@ import os
 from contextlib import asynccontextmanager
 
 from demuxai.app import App
+from demuxai.context import ChatCompletionContext
+from demuxai.context import CompletionContext
 from demuxai.context import Context
+from demuxai.context import EmbeddingContext
+from demuxai.context import StreamingContext
 from demuxai.provider import ProviderResponse
 from demuxai.provider import ProviderStreamingCompletionResponse
 from demuxai.settings.main import Settings
@@ -58,7 +62,7 @@ api = API(lifespan=lifespan)
 
 
 async def respond(context: Context, response: ProviderResponse):
-    if context.streaming:
+    if isinstance(context, StreamingContext) and context.streaming:
         if not isinstance(response, ProviderStreamingCompletionResponse):
             raise HTTPException(status_code=500, detail="Streaming not supported")
         return StreamingProxyResponse(context, response)
@@ -89,7 +93,7 @@ async def models(request: Request):
 @api.post("/completions")
 @api.post("/v1/completions")
 async def completions(request: Request):
-    context = await Context.from_request(request)
+    context = await CompletionContext.from_request(request)
     response = await api.app.get_completion(context)
     return await respond(context, response)
 
@@ -97,7 +101,7 @@ async def completions(request: Request):
 @api.post("/chat/completions")
 @api.post("/v1/chat/completions")
 async def chat_completions(request: Request):
-    context = await Context.from_request(request)
+    context = await ChatCompletionContext.from_request(request)
     response = await api.app.get_chat_completion(context)
     return await respond(context, response)
 
@@ -105,6 +109,14 @@ async def chat_completions(request: Request):
 @api.post("/fim/completions")
 @api.post("/v1/fim/completions")
 async def fim_completions(request: Request):
-    context = await Context.from_request(request)
+    context = await CompletionContext.from_request(request)
     response = await api.app.get_fim_completion(context)
+    return await respond(context, response)
+
+
+@api.post("/embeddings")
+@api.post("/v1/embeddings")
+async def embeddings(request: Request):
+    context = await EmbeddingContext.from_request(request)
+    response = await api.app.get_embeddings(context)
     return await respond(context, response)

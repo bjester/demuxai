@@ -1,8 +1,11 @@
 import logging
 
+from demuxai.context import CompletionContext
 from demuxai.context import Context
 from demuxai.context import TOKEN_PREFIX
 from demuxai.context import TOKEN_SUFFIX
+from demuxai.model import CAPABILITY_COMPLETION
+from demuxai.model import CAPABILITY_EMBEDDING
 from demuxai.model import CAPABILITY_FIM
 from demuxai.model import CAPABILITY_STREAMING
 from demuxai.model import CAPABILITY_TOOLS
@@ -16,6 +19,7 @@ from demuxai.settings.provider import ProviderSettings
 
 
 API_FIM_COMPLETION = "/v1/fim/completions"
+MINIMUM_CAPABILITIES = {CAPABILITY_EMBEDDING, CAPABILITY_COMPLETION}
 
 logger = logging.getLogger("uvicorn")
 
@@ -34,15 +38,22 @@ class BaseMistralProvider(HTTPServiceProvider):
                 logger.info(f"[{self.id}] Model {model_dict['id']} not allowed")
                 continue
 
+            capabilities = []
+            input_modalities = [IO_MODALITY_TEXT]
             mistral_capabilities = model_dict.get("capabilities", {})
-            if not mistral_capabilities.get("completion_chat", False):
+
+            if "-embed-" in model_dict["id"]:
+                capabilities.append(CAPABILITY_EMBEDDING)
+
+            if mistral_capabilities.get("completion_chat", False):
+                capabilities.append(CAPABILITY_COMPLETION)
+                capabilities.append(CAPABILITY_STREAMING)
+
+            if not MINIMUM_CAPABILITIES.intersection(capabilities):
                 logger.warning(
-                    f"[{self.id}] Model {model_dict['id']} does not allow chat completion"
+                    f"[{self.id}] Model {model_dict['id']} does not support minimum capabilities"
                 )
                 continue
-
-            capabilities = [CAPABILITY_STREAMING]
-            input_modalities = [IO_MODALITY_TEXT]
 
             if mistral_capabilities.get("function_calling", False):
                 capabilities.append(CAPABILITY_TOOLS)
@@ -60,7 +71,7 @@ class BaseMistralProvider(HTTPServiceProvider):
             models.append(MistralModel.from_dict(self.settings.id, model_dict))
         return ProviderModelsResponse(self, context, models)
 
-    async def get_fim_completion(self, context: Context):
+    async def get_fim_completion(self, context: CompletionContext):
         if TOKEN_PREFIX in context.prompt:
             suffix, prompt = context.prompt.split(TOKEN_PREFIX, 1)
             context.update(

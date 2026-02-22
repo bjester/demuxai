@@ -24,6 +24,7 @@ Currently, demuxai has the following capabilities:
 - Legacy completion endpoint
 - Chat completion
 - FIM completion
+- Embedding generation
 - Streaming responses
 
 ### Planned
