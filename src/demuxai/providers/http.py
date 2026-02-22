@@ -7,15 +7,18 @@ from typing import Union
 
 import httpx
 from demuxai import __version__
-from demuxai.context import Context
+from demuxai.context import AnyCompletionContext
+from demuxai.context import ChatCompletionContext
+from demuxai.context import CompletionContext
+from demuxai.context import EmbeddingContext
 from demuxai.exceptions import ProviderConfigurationError
+from demuxai.provider import ProviderEmbeddingResponse
 from demuxai.provider import ProviderFullCompletionResponse
 from demuxai.provider import ProviderStreamingCompletionResponse
 from demuxai.providers.service import ServiceProvider
 from demuxai.settings.provider import ProviderSettings
 from demuxai.sse import AsyncJSONStreamReader
 from demuxai.sse import JSONEvent
-from demuxai.utils import recursive_update
 from httpx import Request
 from httpx import Response
 
@@ -26,10 +29,12 @@ logger = logging.getLogger("uvicorn")
 class HTTPCompletionResponse(ProviderFullCompletionResponse[Response]):
     __slots__ = ("upstream_response",)
 
+    context: AnyCompletionContext
+
     def __init__(
         self,
         provider: "HTTPServiceProvider",
-        context: Context,
+        context: AnyCompletionContext,
         upstream_response: Response,
     ):
         super().__init__(provider, context)
@@ -38,20 +43,19 @@ class HTTPCompletionResponse(ProviderFullCompletionResponse[Response]):
     async def receive(self) -> AsyncGenerator[dict, None]:
         response_data = self.upstream_response.json()
         if "model" in response_data:
-            recursive_update(
-                response_data,
-                dict(model=f"{self.context.provider_id}/{self.context.model}"),
-            )
+            response_data.update(model=lambda m: f"{self.provider.id}/{m}")
         yield response_data
 
 
 class HTTPStreamingCompletionResponse(ProviderStreamingCompletionResponse[Response]):
     __slots__ = ("upstream_response",)
 
+    context: AnyCompletionContext
+
     def __init__(
         self,
         provider: "HTTPServiceProvider",
-        context: Context,
+        context: AnyCompletionContext,
         upstream_response: AsyncContextManager[Response],
     ):
         super().__init__(provider, context)
@@ -79,6 +83,27 @@ class HTTPStreamingCompletionResponse(ProviderStreamingCompletionResponse[Respon
             if "model" in (event.data or {}):
                 event.update_data(model=lambda m: f"{self.provider.id}/{m}")
             yield event
+
+
+class HTTPEmbeddingResponse(ProviderEmbeddingResponse[Response]):
+    __slots__ = ("upstream_response",)
+
+    context: EmbeddingContext
+
+    def __init__(
+        self,
+        provider: "HTTPServiceProvider",
+        context: EmbeddingContext,
+        upstream_response: Response,
+    ):
+        super().__init__(provider, context, [])
+        self.upstream_response = upstream_response
+
+    async def receive(self) -> AsyncGenerator[dict, None]:
+        response_data = self.upstream_response.json()
+        if "model" in response_data:
+            response_data.update(model=lambda m: f"{self.provider.id}/{m}")
+        yield response_data
 
 
 AnyHTTPCompletionResponse = Union[
@@ -149,7 +174,9 @@ class HTTPServiceProvider(ServiceProvider, ABC):
         if self._client:
             await self._client.aclose()
 
-    async def get_completion(self, context: Context) -> AnyHTTPCompletionResponse:
+    async def _post_completion(
+        self, context: AnyCompletionContext
+    ) -> AnyHTTPCompletionResponse:
         if context.streaming:
             response = self.client.stream(
                 "POST",
@@ -167,8 +194,26 @@ class HTTPServiceProvider(ServiceProvider, ABC):
         response.raise_for_status()
         return HTTPCompletionResponse(self, context, response)
 
-    async def get_chat_completion(self, context: Context) -> AnyHTTPCompletionResponse:
-        return await self.get_completion(context)
+    async def get_completion(
+        self, context: CompletionContext
+    ) -> AnyHTTPCompletionResponse:
+        return await self._post_completion(context)
 
-    async def get_fim_completion(self, context: Context) -> AnyHTTPCompletionResponse:
-        return await self.get_completion(context)
+    async def get_chat_completion(
+        self, context: ChatCompletionContext
+    ) -> AnyHTTPCompletionResponse:
+        return await self._post_completion(context)
+
+    async def get_fim_completion(
+        self, context: CompletionContext
+    ) -> AnyHTTPCompletionResponse:
+        return await self._post_completion(context)
+
+    async def get_embeddings(self, context: EmbeddingContext) -> HTTPEmbeddingResponse:
+        response = await self.client.post(
+            context.url_path,
+            params=context.query_params,
+            json=context.payload,
+        )
+        response.raise_for_status()
+        return HTTPEmbeddingResponse(self, context, response)

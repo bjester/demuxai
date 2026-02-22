@@ -1,6 +1,8 @@
 from unittest.mock import AsyncMock
 from unittest.mock import Mock
 
+from demuxai.model import CAPABILITY_COMPLETION
+from demuxai.model import CAPABILITY_EMBEDDING
 from demuxai.model import CAPABILITY_FIM
 from demuxai.model import CAPABILITY_STREAMING
 from demuxai.model import CAPABILITY_TOOLS
@@ -59,6 +61,7 @@ class MistralProviderTestCase(BaseProviderTestCase):
         self.assertIsInstance(model, MistralModel)
         self.assertEqual(model.id, "test-mistralai/codestral-2501")
         self.assertEqual(model.owned_by, "mistralai")
+        self.assertIn(CAPABILITY_COMPLETION, model.capabilities)
         self.assertIn(CAPABILITY_STREAMING, model.capabilities)
         self.assertIn(CAPABILITY_TOOLS, model.capabilities)
         self.assertIn(CAPABILITY_FIM, model.capabilities)
@@ -93,6 +96,7 @@ class MistralProviderTestCase(BaseProviderTestCase):
         model = result.models[0]
         self.assertIn(IO_MODALITY_TEXT, model.input_modalities)
         self.assertIn(IO_MODALITY_IMAGE, model.input_modalities)
+        self.assertIn(CAPABILITY_COMPLETION, model.capabilities)
         self.assertIn(CAPABILITY_STREAMING, model.capabilities)
         self.assertNotIn(CAPABILITY_TOOLS, model.capabilities)
         self.assertNotIn(CAPABILITY_FIM, model.capabilities)
@@ -156,8 +160,10 @@ class MistralProviderTestCase(BaseProviderTestCase):
 
         self.assertEqual(len(result.models), 1)
         model = result.models[0]
-        # Streaming is always added
-        self.assertEqual(model.capabilities, [CAPABILITY_STREAMING])
+        # Completion and streaming are added for completion_chat models
+        self.assertIn(CAPABILITY_COMPLETION, model.capabilities)
+        self.assertIn(CAPABILITY_STREAMING, model.capabilities)
+        self.assertEqual(len(model.capabilities), 2)
         self.assertEqual(model.input_modalities, [IO_MODALITY_TEXT])
 
     async def test_get_models_with_filter(self):
@@ -268,3 +274,95 @@ class MistralProviderTestCase(BaseProviderTestCase):
         model = result.models[0]
         self.assertIsInstance(model, MistralModel)
         self.assertEqual(model.default_temperature, 0.3)
+
+    async def test_get_models_embedding_capability(self):
+        """Test that embedding models get CAPABILITY_EMBEDDING"""
+        mock_response = Mock()
+        mock_response.json.return_value = {
+            "data": [
+                {
+                    "id": "mistral-embed-large",
+                    "object": "model",
+                    "created": 1768405801,
+                    "owned_by": "mistralai",
+                    "capabilities": {},
+                    "name": "Mistral Embed Large",
+                }
+            ]
+        }
+        self.provider.client.get = AsyncMock(return_value=mock_response)
+
+        result = await self.provider._get_models(self.context)
+
+        self.assertEqual(len(result.models), 1)
+        model = result.models[0]
+        self.assertIn(CAPABILITY_EMBEDDING, model.capabilities)
+        # Embedding models don't have completion_chat, so no COMPLETION or STREAMING
+        self.assertNotIn(CAPABILITY_COMPLETION, model.capabilities)
+        self.assertNotIn(CAPABILITY_STREAMING, model.capabilities)
+
+    async def test_get_models_completion_capability(self):
+        """Test that completion_chat adds CAPABILITY_COMPLETION and CAPABILITY_STREAMING"""
+        mock_response = Mock()
+        mock_response.json.return_value = {
+            "data": [
+                {
+                    "id": "test-model",
+                    "object": "model",
+                    "created": 1768405801,
+                    "owned_by": "mistralai",
+                    "capabilities": {"completion_chat": True},
+                    "name": "Test Model",
+                }
+            ]
+        }
+        self.provider.client.get = AsyncMock(return_value=mock_response)
+
+        result = await self.provider._get_models(self.context)
+
+        self.assertEqual(len(result.models), 1)
+        model = result.models[0]
+        self.assertIn(CAPABILITY_COMPLETION, model.capabilities)
+        self.assertIn(CAPABILITY_STREAMING, model.capabilities)
+
+    async def test_get_models_filters_models_without_minimum_capabilities(self):
+        """Test that models without minimum capabilities (embedding or completion) are filtered"""
+        mock_response = Mock()
+        mock_response.json.return_value = {
+            "data": [
+                {
+                    "id": "valid-completion-model",
+                    "object": "model",
+                    "created": 1768405801,
+                    "owned_by": "mistralai",
+                    "capabilities": {"completion_chat": True},
+                    "name": "Valid Completion Model",
+                },
+                {
+                    "id": "valid-embed-model",
+                    "object": "model",
+                    "created": 1768405801,
+                    "owned_by": "mistralai",
+                    "capabilities": {},
+                    "name": "Valid Embed Model",
+                },
+                {
+                    "id": "invalid-model",
+                    "object": "model",
+                    "created": 1768405801,
+                    "owned_by": "mistralai",
+                    "capabilities": {"completion_chat": False},
+                    "name": "Invalid Model",
+                },
+            ]
+        }
+        self.provider.client.get = AsyncMock(return_value=mock_response)
+
+        result = await self.provider._get_models(self.context)
+
+        # Only models with completion_chat=True or "-embed-" in ID should be included
+        self.assertEqual(len(result.models), 2)
+        model_ids = [model.id for model in result.models]
+        self.assertIn("test-mistralai/valid-completion-model", model_ids)
+        self.assertIn("test-mistralai/valid-embed-model", model_ids)
+        self.assertNotIn("test-mistralai/invalid-model", model_ids)

@@ -1,7 +1,11 @@
 import asyncio
 from typing import List
 
+from demuxai.context import ChatCompletionContext
+from demuxai.context import CompletionContext
 from demuxai.context import Context
+from demuxai.context import EmbeddingContext
+from demuxai.context import ModelContext
 from demuxai.exceptions import ProviderNotFoundError
 from demuxai.provider import BaseProvider
 from demuxai.provider import ProviderModelsResponse
@@ -45,7 +49,7 @@ class App(BaseCompositeProvider):
                     models.append(model)
         return ProviderModelsResponse(self, context, models)
 
-    def _get_provider(self, context: Context) -> BaseProvider:
+    def _get_provider(self, context: ModelContext) -> BaseProvider:
         if context.model is None:
             raise ProviderNotFoundError("No model specified")
 
@@ -56,17 +60,20 @@ class App(BaseCompositeProvider):
 
         raise ProviderNotFoundError(f"No provider found for model {context.model}")
 
-    async def get_completion(self, context: Context):
+    async def get_completion(self, context: CompletionContext):
         if context.is_fim:
             return await self.get_fim_completion(context)
 
         return await self._get_provider(context).get_completion(context)
 
-    async def get_chat_completion(self, context: Context):
+    async def get_chat_completion(self, context: ChatCompletionContext):
         return await self._get_provider(context).get_chat_completion(context)
 
-    async def get_fim_completion(self, context: Context):
+    async def get_fim_completion(self, context: CompletionContext):
         return await self._get_provider(context).get_fim_completion(context)
+
+    async def get_embeddings(self, context: EmbeddingContext):
+        return await self._get_provider(context).get_embeddings(context)
 
     async def shutdown(self):
         await asyncio.gather(*[provider.shutdown() for provider in self.providers])

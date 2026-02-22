@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock
 from unittest.mock import Mock
 
+from demuxai.model import CAPABILITY_EMBEDDING
 from demuxai.model import CAPABILITY_FIM
 from demuxai.model import CAPABILITY_REASONING
 from demuxai.model import CAPABILITY_STREAMING
@@ -112,6 +113,34 @@ class OllamaProviderTestCase(BaseProviderTestCase):
 
         model = result.models[0]
         self.assertIn(CAPABILITY_TOOLS, model.capabilities)
+
+    async def test_get_models_with_embedding_capability(self):
+        """Test _get_models detects embedding capability"""
+        mock_list_response = Mock()
+        mock_list_response.json.return_value = {
+            "data": [
+                {
+                    "id": "qwen3-embedding:7b",
+                    "object": "model",
+                    "created": 1700000000,
+                    "owned_by": "ollama",
+                }
+            ]
+        }
+
+        mock_details_response = Mock()
+        mock_details_response.json.return_value = {
+            "capabilities": ["embedding"],
+            "template": "{{ .Prompt }}",
+        }
+
+        self.provider.client.get = AsyncMock(return_value=mock_list_response)
+        self.provider.client.post = AsyncMock(return_value=mock_details_response)
+
+        result = await self.provider._get_models(self.context)
+
+        model = result.models[0]
+        self.assertIn(CAPABILITY_EMBEDDING, model.capabilities)
 
     async def test_get_models_with_reasoning(self):
         """Test _get_models detects reasoning capability via template"""
@@ -256,7 +285,7 @@ class OllamaProviderTestCase(BaseProviderTestCase):
                 }
             else:
                 response.json.return_value = {
-                    "capabilities": ["embedding"],
+                    "capabilities": ["voice"],
                     "template": "{{ .Prompt }}",
                 }
             return response

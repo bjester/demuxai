@@ -9,13 +9,18 @@ from typing import List
 from typing import TypeVar
 from typing import Union
 
+from demuxai.context import AnyCompletionContext
+from demuxai.context import ChatCompletionContext
+from demuxai.context import CompletionContext
 from demuxai.context import Context
+from demuxai.context import EmbeddingContext
 from demuxai.model import Model
 from demuxai.sse import JSONEvent
 
 
 T = TypeVar("T")
 U = TypeVar("U")
+Embedding = List[Union[float, int]]
 
 
 class ProviderResponse(AsyncContextManager[T], Generic[T, U], ABC):
@@ -70,14 +75,35 @@ class ProviderModelsResponse(ProviderResponse[T, Model], Generic[T]):
             yield model
 
 
+class ProviderEmbeddingResponse(ProviderResponse[T, Model], Generic[T]):
+    """Response for a list of Embeddings"""
+
+    __slots__ = ("embeddings",)
+
+    def __init__(
+        self,
+        provider: "BaseProvider",
+        context: EmbeddingContext,
+        embeddings: List[Embedding],
+    ):
+        super().__init__(provider, context)
+        self.embeddings = embeddings
+
+    async def receive(self) -> AsyncGenerator[Embedding, None]:
+        for embedding in self.embeddings:
+            yield embedding
+
+
 class ProviderFullCompletionResponse(ProviderResponse[T, dict], Generic[T], ABC):
-    pass
+    def __init__(self, provider: "BaseProvider", context: AnyCompletionContext):
+        super().__init__(provider, context)
 
 
 class ProviderStreamingCompletionResponse(
     ProviderResponse[T, JSONEvent], Generic[T], ABC
 ):
-    pass
+    def __init__(self, provider: "BaseProvider", context: AnyCompletionContext):
+        super().__init__(provider, context)
 
 
 AnyProviderCompletionResponse = Union[
@@ -106,19 +132,27 @@ class BaseProvider(ABC):
         pass
 
     @abstractmethod
-    async def get_completion(self, context: Context) -> AnyProviderCompletionResponse:
+    async def get_completion(
+        self, context: CompletionContext
+    ) -> AnyProviderCompletionResponse:
         pass
 
     @abstractmethod
     async def get_chat_completion(
-        self, context: Context
+        self, context: ChatCompletionContext
     ) -> AnyProviderCompletionResponse:
         pass
 
     @abstractmethod
     async def get_fim_completion(
-        self, context: Context
+        self, context: CompletionContext
     ) -> AnyProviderCompletionResponse:
+        pass
+
+    @abstractmethod
+    async def get_embeddings(
+        self, context: EmbeddingContext
+    ) -> ProviderEmbeddingResponse:
         pass
 
     async def shutdown(self):

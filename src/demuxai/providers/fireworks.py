@@ -1,6 +1,7 @@
 import logging
 
 from demuxai.context import Context
+from demuxai.model import CAPABILITY_COMPLETION
 from demuxai.model import CAPABILITY_TOOLS
 from demuxai.model import IO_MODALITY_IMAGE
 from demuxai.model import IO_MODALITY_TEXT
@@ -16,6 +17,7 @@ FIREWORKS_MODALITIES_MAP = {
     "supports_image_input": IO_MODALITY_IMAGE,
 }
 FIREWORKS_CAPABILITIES_MAP = {
+    "supports_chat": CAPABILITY_COMPLETION,
     "supports_tools": CAPABILITY_TOOLS,
 }
 

@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock
 from unittest.mock import Mock
 
+from demuxai.model import CAPABILITY_COMPLETION
 from demuxai.model import IO_MODALITY_IMAGE
 from demuxai.model import IO_MODALITY_TEXT
 from demuxai.models.github import GithubModel
@@ -160,7 +161,7 @@ class GithubProviderTestCase(BaseProviderTestCase):
 
         self.assertEqual(len(result.models), 1)
         model = result.models[0]
-        self.assertEqual(model.capabilities, [])
+        self.assertEqual(model.capabilities, [CAPABILITY_COMPLETION])
 
     async def test_get_models_metadata_preserved(self):
         """Test that model metadata is properly preserved"""
