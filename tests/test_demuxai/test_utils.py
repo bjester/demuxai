@@ -207,7 +207,7 @@ class AsyncCacherTestCase(IsolatedAsyncioTestCase):
         """Test AsyncCacher used as decorator with basic functionality"""
 
         class TestCacheProvider(CacheProvider):
-            cache_time = 0.5  # Short cache time for testing
+            cache_time = 0.05  # Short cache time for testing
 
             @AsyncCacher
             async def get_data(self):
@@ -224,7 +224,7 @@ class AsyncCacherTestCase(IsolatedAsyncioTestCase):
         self.assertEqual(result2, "fresh_data")
 
         # Wait for cache to expire
-        await asyncio.sleep(0.6)
+        await asyncio.sleep(0.1)
 
         # Third call should execute method again
         result3 = await provider.get_data()
