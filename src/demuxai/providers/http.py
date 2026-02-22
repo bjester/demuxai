@@ -19,6 +19,7 @@ from demuxai.providers.service import ServiceProvider
 from demuxai.settings.provider import ProviderSettings
 from demuxai.sse import AsyncJSONStreamReader
 from demuxai.sse import JSONEvent
+from demuxai.utils import recursive_update
 from httpx import Request
 from httpx import Response
 
@@ -43,7 +44,9 @@ class HTTPCompletionResponse(ProviderFullCompletionResponse[Response]):
     async def receive(self) -> AsyncGenerator[dict, None]:
         response_data = self.upstream_response.json()
         if "model" in response_data:
-            response_data.update(model=lambda m: f"{self.provider.id}/{m}")
+            recursive_update(
+                response_data, dict(model=lambda m: f"{self.provider.id}/{m}")
+            )
         yield response_data
 
 
@@ -102,7 +105,9 @@ class HTTPEmbeddingResponse(ProviderEmbeddingResponse[Response]):
     async def receive(self) -> AsyncGenerator[dict, None]:
         response_data = self.upstream_response.json()
         if "model" in response_data:
-            response_data.update(model=lambda m: f"{self.provider.id}/{m}")
+            recursive_update(
+                response_data, dict(model=lambda m: f"{self.provider.id}/{m}")
+            )
         yield response_data
 
 
