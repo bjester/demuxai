@@ -42,6 +42,56 @@ The following features are planned:
 - Need a full-featured proxy or GUI? Checkout [bifrost](https://github.com/maximhq/bifrost)
 - Need more providers? Checkout [LiteLLM](https://github.com/BerriAI/litellm)
 
+## Running
+Create a `config.yml` (see `config.spec.yml`) and run `demuxai` in the directory of that file, or pass its path as `-c /path/to/config.yml`. Run `demuxai -h` to see help information.
+
+```bash
+demuxai -c /path/to/config.yml
+```
+
+### Example config
+Export your API keys in environment variables with the names specified in each `${...}`. Remove any providers you don't use.
+
+```yaml
+demuxai:
+  listen: '127.0.0.1'
+  port: 6041
+  cache_seconds: 3600
+  timeout_seconds: 300
+
+  providers:
+    ollama:
+      type: ollama
+      name: Local Ollama
+      description: Local Ollama for testing
+
+    mistral:
+      type: mistralai
+      name: Mistral AI
+      api_key: ${MISTRAL_API_KEY}
+      exclude_models:
+        - voxtral-*
+        - mistral-ocr-*
+        - mistral-moderation-*
+
+    codestral:
+      type: codestral
+      name: Codestral from Mistral AI
+      api_key: ${CODESTRAL_API_KEY}
+
+    github:
+      type: github
+      name: GitHub Models
+      api_key: ${GITHUB_TOKEN}
+
+    fireworks:
+      type: fireworks
+      name: Fireworks AI Serverless
+      api_key: ${FIREWORKS_API_KEY}
+      exclude_models:
+        - accounts/fireworks/models/flux*
+```
+
 ## AI Disclosure
 LLMs were used in the development of this project, mostly for brainstorming and bootstrapping code, particularly tests. The contribution proportion is roughly 80 / 20, human and AI code respectively.
 
