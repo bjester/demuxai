@@ -1,6 +1,6 @@
 [project]
 name = "demuxai"
-version = "0.0.1"
+version = "0.0.2"
 description = "A local proxy that provides a singular OpenAI compatible API for all your AI services. Try it out with your Jetbrains IDE"
 readme = "README.md"
 authors = [
