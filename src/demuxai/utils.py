@@ -80,7 +80,7 @@ class AsyncCacheTarget(BaseAsyncCache[T]):
                 return self.value
 
             self.value = await self.func(self.target, *args, **kwargs)
-            self.last_call_time = time.monotonic()
+            self.last_call_time = now
             return self.value
 
 
