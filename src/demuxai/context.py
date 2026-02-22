@@ -143,7 +143,10 @@ class CompletionContext(StreamingContext, ModelGenerationContext):
     @property
     def is_fim(self) -> bool:
         return (
-            self.prompt and self.suffix is not None or TOKEN_SUFFIX in self.stop_tokens
+            self.prompt is not None
+            and self.prompt != ""
+            and self.suffix is not None
+            or TOKEN_SUFFIX in self.stop_tokens
         )
 
 
